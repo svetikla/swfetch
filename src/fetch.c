@@ -20,10 +20,8 @@ dist info = {
   .getPkgCount = "echo unsupported",
 };
 
-char *shellname,  *username,
-     *pkgcount,   *osname,
-     *term,       *wm,
-     *ed;
+char *shellname, *pkgcount,
+     *osname,    *wm;
 
 char *krnlver;
 
@@ -132,10 +130,10 @@ os()
 int
 main(void)
 {
-  os();
+  wm = (char *)get_wm();
   kernel();
   shell();
-  wm = (char *)get_wm();
+  os();
 
   puts("");
   printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", getenv("USER"));

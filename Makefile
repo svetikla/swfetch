@@ -6,7 +6,7 @@ PREFIX ?= /usr/local
 
 all: swfetch
 
-swfetch: ${SRC} src/config.h src/wm.h
+swfetch: ${SRC} src/config.h
 	${CC} ${CFLAGS} ${SRC} -o swfetch
 
 debug:

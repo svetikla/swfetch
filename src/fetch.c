@@ -26,13 +26,13 @@ dist info = {
 char *username,  *term,
      *osname,    *cpu,
      *wm,        *ed,
-     *shellname, *pkgCount;
+     *shellname, *pkgcount;
 
 char *krnlver;
 long uptimeH, uptimeM;
 
 void
-lowerCase(char *str)
+lowercase(char *str)
 {
   int i;
   for (i = 0; str[i] != '\0'; i++)
@@ -41,7 +41,7 @@ lowerCase(char *str)
 }
 
 void
-upperCase(char *str)
+uppercase(char *str)
 {
   int i;
 
@@ -67,20 +67,22 @@ char
 }
 
 void
-*kernel()
+kernel()
 {
-  static struct utsname kernelData;
-  uname(&kernelData);
-  krnlver = kernelData.release;
-  return NULL;
+  static struct utsname kerneldata;
+  uname(&kerneldata);
+  krnlver = kerneldata.release;
 }
 
 
 void
-*user()
-{
+user() {
   username = getenv("USER");
-  return 0;
+}
+
+void
+getterm() {
+  term = getenv("TERM");
 }
 
 void
@@ -92,12 +94,6 @@ shell()
     shell = slash + 1;
   }
   shellname = shell;
-}
-
-void
-getterm()
-{
-  term = getenv("TERM");
 }
 
 void
@@ -116,7 +112,7 @@ get_wm(void)
   struct kinfo_proc *kp;
   const char *wms[] = { "i3", "dwm", "sway",
                         "openbox", NULL };
-  const char *res = "Unknown";
+  const char *res = "unknown";
 
   if (getenv("XDG_CURRENT_DESKTOP"))
     return getenv("XDG_CURRENT_DESKTOP");
@@ -158,26 +154,25 @@ const char
 }
 
 void
-*os()
+os()
 {
-  static struct utsname sysInfo;
-  uname(&sysInfo);
+  static struct utsname sysinfo;
+  uname(&sysinfo);
 
-  if (!strncmp(sysInfo.sysname, "FreeBSD", 7)) {
+  if (!strncmp(sysinfo.sysname, "FreeBSD", 7)) {
     info.getPkgCount = "pkg info | wc -l | tr -d ' '";
-    osname = sysInfo.sysname;
-  } else if (!strncmp(sysInfo.sysname, "OpenBSD", 7)) {
+    osname = sysinfo.sysname;
+  } else if (!strncmp(sysinfo.sysname, "OpenBSD", 7)) {
   info.getPkgCount =
     "/bin/ls -1 /var/db/pkg/ | wc -l | tr -d ' '";
-    osname = sysInfo.sysname;
+    osname = sysinfo.sysname;
 	}
-    pkgCount = pipeRead(info.getPkgCount);
+    pkgcount = pipeRead(info.getPkgCount);
 
   if (ForceLowerCase)
-    lowerCase(osname);
+    lowercase(osname);
   if (ForceUpperCase)
-    upperCase(osname);
-  return 0;
+    uppercase(osname);
 }
 
 int
@@ -197,7 +192,7 @@ main()
   printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", username);
   printf("%s%*s%s\n", OSTEXT,      TABSIZE, "", osname);
   printf("%s%*s%s\n", KERNELTEXT,  TABSIZE, "", krnlver);
-  printf("%s%*s%s\n", PACKAGETEXT, TABSIZE, "", pkgCount);
+  printf("%s%*s%s\n", PACKAGETEXT, TABSIZE, "", pkgcount);
   printf("%s%*s%s\n", SHELLTEXT,   TABSIZE, "", shellname);
   printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", term);
   printf("%s%*s%s\n", WMTEXT,      TABSIZE, "", wm);
@@ -205,6 +200,6 @@ main()
   printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", uptime());
   puts("");
 
-  free(pkgCount);
+  free(pkgcount);
   return 0;
 }

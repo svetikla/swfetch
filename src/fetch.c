@@ -1,13 +1,10 @@
 #include <stddef.h>
 #define _POSIX_C_SOURCE 200809L
-
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
 #include <time.h>
-#include <ctype.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
@@ -23,32 +20,12 @@ dist info = {
   .getPkgCount = "echo unsupported",
 };
 
-char *username,  *term,
-     *osname,    *cpu,
-     *wm,        *ed,
-     *shellname, *pkgcount;
+char *shellname,  *username,
+     *pkgcount,   *osname,
+     *term,       *wm,
+     *ed;
 
 char *krnlver;
-long uptimeH, uptimeM;
-
-void
-lowercase(char *str)
-{
-  int i;
-  for (i = 0; str[i] != '\0'; i++)
-    if (isupper((unsigned char)str[i]))
-      str[i] = tolower((unsigned char)str[i]);
-}
-
-void
-uppercase(char *str)
-{
-  int i;
-
-  for (i =0; str[i] != '\0'; i++)
-    if (islower((unsigned char)str[i]))
-      str[i] = toupper((unsigned char)str[i]);
-}
 
 char
 *pipeRead(const char *exec)
@@ -74,17 +51,6 @@ kernel()
   krnlver = kerneldata.release;
 }
 
-
-void
-user() {
-  username = getenv("USER");
-}
-
-void
-getterm() {
-  term = getenv("TERM");
-}
-
 void
 shell()
 {
@@ -94,13 +60,6 @@ shell()
     shell = slash + 1;
   }
   shellname = shell;
-}
-
-void
-geted()
-{
-  ed = getenv("EDITOR");
-  if (!ed) ed = "vim";
 }
 
 const char *
@@ -161,42 +120,32 @@ os()
 
   if (!strncmp(sysinfo.sysname, "FreeBSD", 7)) {
     info.getPkgCount = "pkg info | wc -l | tr -d ' '";
-    osname = sysinfo.sysname;
   } else if (!strncmp(sysinfo.sysname, "OpenBSD", 7)) {
   info.getPkgCount =
     "/bin/ls -1 /var/db/pkg/ | wc -l | tr -d ' '";
-    osname = sysinfo.sysname;
 	}
-    pkgcount = pipeRead(info.getPkgCount);
 
-  if (ForceLowerCase)
-    lowercase(osname);
-  if (ForceUpperCase)
-    uppercase(osname);
+  osname = sysinfo.sysname;
+  pkgcount = pipeRead(info.getPkgCount);
 }
 
 int
-main()
+main(void)
 {
-  struct utsname sysInfo;
-
-  user();
   os();
   kernel();
   shell();
-  getterm();
   wm = (char *)get_wm();
-  geted();
 
   puts("");
-  printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", username);
+  printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", getenv("USER"));
   printf("%s%*s%s\n", OSTEXT,      TABSIZE, "", osname);
   printf("%s%*s%s\n", KERNELTEXT,  TABSIZE, "", krnlver);
   printf("%s%*s%s\n", PACKAGETEXT, TABSIZE, "", pkgcount);
   printf("%s%*s%s\n", SHELLTEXT,   TABSIZE, "", shellname);
-  printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", term);
+  printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", getenv("TERM"));
   printf("%s%*s%s\n", WMTEXT,      TABSIZE, "", wm);
-  printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", ed);
+  printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
   printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", uptime());
   puts("");
 

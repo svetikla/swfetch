@@ -12,85 +12,82 @@
 
 struct
 dist {
-  char *getPkgCount;
+  char *getpkgcount;
 };
 
 struct 
 dist info = {
-  .getPkgCount = "echo unsupported",
+  .getpkgcount = "echo unsupported",
 };
 
-char *shellname, *pkgcount,
-     *osname,    *wm;
+struct
+state {
+  char *kernel;
+  char *shell;
+  char *pkgs;
+  char *os;
+  char *wm;
+};
 
-char *krnlver;
-
-char
-*pipeRead(const char *exec)
+char *pipeRead(const char *cmd)
 {
-  FILE *pipe;
-  char *res;
+  FILE *p = popen(cmd, "r");
+  if (!p) return NULL;
 
-  pipe = popen(exec, "r");
-  res  = malloc(256);
+  char buf[256];
 
-  if (fscanf(pipe, "%255[^\n]", res) == EOF) {
-    strncpy(res, "0", 256);
+  if (!fgets(buf, sizeof(buf), p)) {
+    pclose(p);
+    return NULL;
   }
-  pclose(pipe);
-  return res;
+
+  pclose(p);
+  buf[strcspn(buf, "\n")] = 0;
+
+  if (buf[0] == '\0')
+    return NULL;
+
+  return strdup(buf);
 }
 
 void
-kernel()
+kernel(struct state *st)
 {
   static struct utsname kerneldata;
   uname(&kerneldata);
-  krnlver = kerneldata.release;
+  st->kernel = kerneldata.release;
 }
 
 void
-shell()
+shell(struct state *st)
 {
-  char *shell = getenv("SHELL");
-  char *slash = strrchr(shell, '/');
-  if (slash) {
-    shell = slash + 1;
+  char *sh = getenv("SHELL");
+  if (!sh) {
+    st->shell = "unknown";
+    return;
   }
-  shellname = shell;
+  char *slash = strrchr(sh, '/');
+  st->shell = slash ? slash + 1 : sh;
 }
 
-const char *
-get_wm(void)
+char *getwm(void)
 {
-  int mib[] = { CTL_KERN, KERN_PROC,
-                KERN_PROC_PROC, 0 };
-  size_t len;
-  struct kinfo_proc *kp;
-  const char *wms[] = { "i3", "dwm", "sway",
-                        "openbox", NULL };
-  const char *res = "unknown";
+  const char *cmds[] = {
+    "swaymsg -t get_version 2>/dev/null | head -n1 | awk '{print \"sway\"}'",
+    "i3-msg -v 2>/dev/null | head -n1 | awk '{print \"i3\"}'",
+    "xprop -root _NET_WM_NAME 2>/dev/null | cut -d '\"' -f2",
+    NULL
+  };
 
-  if (getenv("XDG_CURRENT_DESKTOP"))
-    return getenv("XDG_CURRENT_DESKTOP");
-
-  sysctl(mib, 4, NULL, &len, NULL, 0);
-  kp = malloc(len);
-  if (!kp) {
-    perror("maloc shii");
-    return "unknown";
+  for (int i = 0; cmds[i]; i++) {
+    char *r = pipeRead(cmds[i]);
+    if (r && *r && strcmp(r, "unknown") != 0)
+      return r;
+    free(r);
   }
-  sysctl(mib, 4, kp, &len, NULL, 0);
 
-  for (size_t i = 0; i < len / sizeof(struct kinfo_proc); i++)
-    for (int j = 0; wms[j]; j++)
-      if (strcmp(kp[i].ki_comm, wms[j]) == 0)
-        res = wms[j];
-
-  free(kp);
-  return res;
+  return strdup("unknown");
 }
-
 
 const char
 *uptime()
@@ -115,42 +112,42 @@ const char
 }
 
 void
-os()
+os(struct state *st)
 {
   static struct utsname sysinfo;
   uname(&sysinfo);
 
-  if (!strncmp(sysinfo.sysname, "FreeBSD", 7)) {
-    info.getPkgCount = "pkg info | wc -l | tr -d ' '";
-  } else if (!strncmp(sysinfo.sysname, "OpenBSD", 7)) {
-  info.getPkgCount =
-    "/bin/ls -1 /var/db/pkg/ | wc -l | tr -d ' '";
-	}
+  st->os = sysinfo.sysname;
 
-  osname = sysinfo.sysname;
-  pkgcount = pipeRead(info.getPkgCount);
+  if (!strncmp(sysinfo.sysname, "FreeBSD", 7))
+    st->pkgs = pipeRead("pkg info | wc -l | tr -d ' '");
+  else
+    st->pkgs = "unknown";
+
 }
 
 int
 main(void)
 {
-  wm = (char *)get_wm();
-  kernel();
-  shell();
-  os();
+  struct state st = {0};
+
+  kernel(&st);
+  shell(&st);
+  os(&st);
+  st.wm = getwm();
 
   puts("");
   printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", getenv("USER"));
-  printf("%s%*s%s\n", OSTEXT,      TABSIZE, "", osname);
-  printf("%s%*s%s\n", KERNELTEXT,  TABSIZE, "", krnlver);
-  printf("%s%*s%s\n", PACKAGETEXT, TABSIZE, "", pkgcount);
-  printf("%s%*s%s\n", SHELLTEXT,   TABSIZE, "", shellname);
+  printf("%s%*s%s\n", OSTEXT,      TABSIZE, "", st.os);
+  printf("%s%*s%s\n", KERNELTEXT,  TABSIZE, "", st.kernel);
+  printf("%s%*s%s\n", PACKAGETEXT, TABSIZE, "", st.pkgs);
+  printf("%s%*s%s\n", SHELLTEXT,   TABSIZE, "", st.shell);
   printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", getenv("TERM"));
-  printf("%s%*s%s\n", WMTEXT,      TABSIZE, "", wm);
+  printf("%s%*s%s\n", WMTEXT,      TABSIZE, "", st.wm);
   printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
   printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", uptime());
   puts("");
 
-  free(pkgcount);
+  free(st.pkgs);
   return 0;
 }

@@ -11,25 +11,13 @@
 #include "config.h"
 
 struct
-dist {
-  char *getpkgcount;
-};
-
-struct 
-dist info = {
-  .getpkgcount = "echo unsupported",
-};
-
-struct
 state {
-  char *kernel;
-  char *shell;
-  char *pkgs;
-  char *os;
+  char *kernel; char *shell;
+  char *pkgs;   char *os;
   char *wm;
 };
 
-char *pipeRead(const char *cmd)
+char *pr(const char *cmd)
 {
   FILE *p = popen(cmd, "r");
   if (!p) return (NULL);
@@ -44,8 +32,9 @@ char *pipeRead(const char *cmd)
   pclose(p);
   buf[strcspn(buf, "\n")] = 0;
 
-  if (buf[0] == '\0')
+  if (buf[0] == '\0') {
     return (NULL);
+  }
 
   return (strdup(buf));
 }
@@ -70,17 +59,16 @@ shell(struct state *st)
   st->shell = slash ? slash + 1 : sh;
 }
 
-char *getwm(void)
+char *wm(void)
 {
   const char *cmds[] = {
-    "swaymsg -t get_version 2>/dev/null | head -n1 | awk '{print \"sway\"}'",
     "i3-msg -v 2>/dev/null | head -n1 | awk '{print \"i3\"}'",
     "xprop -root _NET_WM_NAME 2>/dev/null | cut -d '\"' -f2",
     NULL
   };
 
   for (int i = 0; cmds[i]; i++) {
-    char *r = pipeRead(cmds[i]);
+    char *r = pr(cmds[i]);
     if (r && *r && strcmp(r, "unknown") != 0)
       return r;
     free(r);
@@ -120,7 +108,7 @@ os(struct state *st)
   st->os = sysinfo.sysname;
 
   if (!strncmp(sysinfo.sysname, "FreeBSD", 7))
-    st->pkgs = pipeRead("pkg info | wc -l | tr -d ' '");
+    st->pkgs = pr("pkg info | wc -l | tr -d ' '");
   else
     st->pkgs = strdup("unknown");
 }
@@ -133,7 +121,7 @@ main(void)
   kernel(&st);
   shell(&st);
   os(&st);
-  st.wm = getwm();
+  st.wm = wm();
 
   puts("");
   printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", getenv("USER"));
@@ -146,7 +134,8 @@ main(void)
   printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
   printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", uptime());
   puts("");
-
+  
+  free(st.wm);
   free(st.pkgs);
   return (0);
 }

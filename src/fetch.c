@@ -76,6 +76,10 @@ get_wm(void)
 
   sysctl(mib, 4, NULL, &len, NULL, 0);
   kp = malloc(len);
+  if (!kp) {
+    perror("maloc shii");
+    return "unknown";
+  }
   sysctl(mib, 4, kp, &len, NULL, 0);
 
   for (size_t i = 0; i < len / sizeof(struct kinfo_proc); i++)

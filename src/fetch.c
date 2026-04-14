@@ -1,10 +1,10 @@
 #include <stddef.h>
-#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
 #include <time.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
@@ -32,22 +32,22 @@ state {
 char *pipeRead(const char *cmd)
 {
   FILE *p = popen(cmd, "r");
-  if (!p) return NULL;
+  if (!p) return (NULL);
 
   char buf[256];
 
   if (!fgets(buf, sizeof(buf), p)) {
     pclose(p);
-    return NULL;
+    return (NULL);
   }
 
   pclose(p);
   buf[strcspn(buf, "\n")] = 0;
 
   if (buf[0] == '\0')
-    return NULL;
+    return (NULL);
 
-  return strdup(buf);
+  return (strdup(buf));
 }
 
 void
@@ -86,7 +86,7 @@ char *getwm(void)
     free(r);
   }
 
-  return strdup("unknown");
+  return (strdup("unknown"));
 }
 
 const char
@@ -108,7 +108,7 @@ const char
     snprintf(buf, sizeof(buf), "unknown");
   }
 
-  return buf;
+  return (buf);
 }
 
 void
@@ -122,8 +122,7 @@ os(struct state *st)
   if (!strncmp(sysinfo.sysname, "FreeBSD", 7))
     st->pkgs = pipeRead("pkg info | wc -l | tr -d ' '");
   else
-    st->pkgs = "unknown";
-
+    st->pkgs = strdup("unknown");
 }
 
 int
@@ -149,5 +148,5 @@ main(void)
   puts("");
 
   free(st.pkgs);
-  return 0;
+  return (0);
 }

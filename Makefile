@@ -1,7 +1,7 @@
 SRC = src/fetch.c
 CC ?= cc
-CFLAGS = -O2 -std=c99 -Wall -Wextra
-DEBUGFLAGS = -g -Og -std=c99 -Wall -Wextra
+CFLAGS = -O2 -Wall -Wextra
+DEBUGFLAGS = -g -Og -Wall -Wextra
 PREFIX ?= /usr/local
 
 all: swfetch

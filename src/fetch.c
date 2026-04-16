@@ -14,7 +14,7 @@ struct
 state {
 	char *kernel; char *shell;
 	char *pkgs;   char *os;
-	char *wm;
+	char *wm;     char *arch;
 };
 
 char
@@ -45,7 +45,7 @@ kernel(struct state *st)
 {
 	static struct utsname kerneldata;
 	uname(&kerneldata);
-	st->kernel = kerneldata.release;
+	st->kernel = strdup(kerneldata.release);
 }
 
 void
@@ -57,7 +57,7 @@ shell(struct state *st)
 		return;
 	}
 	char *slash = strrchr(sh, '/');
-	st->shell = slash ? slash + 1 : sh;
+	st->shell = strdup(slash ? slash + 1 : sh);
 }
 
 char *wm(void)
@@ -92,12 +92,22 @@ const char
 		time_t diff = now.tv_sec - boottime.tv_sec;
 		int hrs  = (int)((diff % 86400) / 3600);
 		int mins = (int)((diff % 3600) / 60);
-		snprintf(buf, sizeof(buf), "%02d:%02d", hrs, mins);
+		snprintf(buf, sizeof(buf),
+			"%02d:%02d", hrs, mins);
 	} else {
-		snprintf(buf, sizeof(buf), "unknown");
+		snprintf(buf, sizeof(buf),
+			"unknown");
 	}
 
 	return (buf);
+}
+
+void
+arch(struct state *st)
+{
+	struct utsname u;
+	uname(&u);
+	st->arch = strdup(u.machine);
 }
 
 void
@@ -106,7 +116,7 @@ os(struct state *st)
 	static struct utsname sysinfo;
 	uname(&sysinfo);
 
-	st->os = sysinfo.sysname;
+	st->os = strdup(sysinfo.sysname);
 
 	if (!strncmp(sysinfo.sysname, "FreeBSD", 7))
 		st->pkgs = pr("pkg info | wc -l | tr -d ' '");
@@ -123,20 +133,26 @@ main(void)
 	shell(&st);
 	os(&st);
 	st.wm = wm();
+	arch(&st);
 
 	puts("");
 	printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", getenv("USER"));
-	printf("%s%*s%s\n", OSTEXT,      TABSIZE, "", st.os);
-	printf("%s%*s%s\n", KERNELTEXT,  TABSIZE, "", st.kernel);
+	printf("%s%*s%s\n", OSTEXT,	 TABSIZE, "", st.os);
+	printf("%s%*s%s\n", ARCHTEXT,	 TABSIZE, "", st.arch);
+	printf("%s%*s%s\n", KERNELTEXT,	 TABSIZE, "", st.kernel);
 	printf("%s%*s%s\n", PACKAGETEXT, TABSIZE, "", st.pkgs);
-	printf("%s%*s%s\n", SHELLTEXT,   TABSIZE, "", st.shell);
-	printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", getenv("TERM"));
+	printf("%s%*s%s\n", SHELLTEXT,	 TABSIZE, "", st.shell);
+	printf("%s%*s%s\n", TERMTEXT,	 TABSIZE, "", getenv("TERM"));
 	printf("%s%*s%s\n", WMTEXT,      TABSIZE, "", st.wm);
 	printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
 	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", uptime());
 	puts("");
-  
+
 	free(st.wm);
+	free(st.os);
+	free(st.arch);
 	free(st.pkgs);
+	free(st.shell);
+	free(st.kernel);
 	return (0);
 }

@@ -22,25 +22,19 @@ state {
 	char *os;
 };
 
-
 char
 *pr(const char *cmd)
 {
 	char buf[BUFSIZ];
 	FILE *p = popen(cmd, "r");
 	if (!p) return (NULL);
-
 	if (!fgets(buf, sizeof(buf), p)) {
 		pclose(p);
 		return (NULL);
 	}	
-
 	pclose(p);
 	buf[strcspn(buf, "\n")] = 0;
-
-	if (buf[0] == '\0')
-		return (NULL);
-
+	if (buf[0] == '\0') return (NULL);
 	return (strdup(buf));
 }
 
@@ -48,10 +42,7 @@ void
 shell(struct state *st)
 {
 	char *sh = getenv("SHELL");
-	if (!sh) {
-		st->shell = strdup("unknown");
-		return;
-	}
+	if (!sh) return;
 	char *slash = strrchr(sh, '/');
 	st->shell = strdup(slash ? slash + 1 : sh);
 }
@@ -88,17 +79,16 @@ packages(struct state *st)
 	const char* const cmd = "/usr/sbin/pkg info";
 
 	FILE *f = popen(cmd, "r");
-	if (f == NULL)
-		return;
+	if (f == NULL) return;
 
 	size_t npkg = 0;
 
-	while (fgets(buf, sizeof buf, f) != NULL)
+	while (fgets(buf, sizeof buf, f) != NULL) {
 		if (strchr(buf, '\n') != NULL)
 			npkg++;
+	}
 
-	if (pclose(f) != 0)
-		return;
+	if (pclose(f) != 0) return;
 
 	snprintf(buf, sizeof(buf), "%zu", npkg);
 	st->pkgs = strdup(buf);
@@ -112,7 +102,7 @@ user(struct state *st)
 
 	if ((p = getenv("USER")) == NULL || *p == '\0') {
 		if ((pw = getpwuid(getuid())) == NULL)
-			err(1, "getpwuid() failed");
+			return;
 		p = pw->pw_name;
 	}
 	st->user = strdup(p);

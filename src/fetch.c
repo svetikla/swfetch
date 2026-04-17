@@ -5,6 +5,8 @@
 #include <string.h>
 #include <sys/utsname.h>
 #include <time.h>
+#include <pwd.h>
+#include <unistd.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -15,18 +17,19 @@ static char buf[BUFSIZ];
 
 struct
 state {
+	char *user;
 	char *kernel;
 	char *shell;
 	char *pkgs;
 	char *arch;
 	char *os;
-	char *wm;
 };
 
 
 char
 *pr(const char *cmd)
 {
+	char buf[BUFSIZ];
 	FILE *p = popen(cmd, "r");
 	if (!p) return (NULL);
 
@@ -38,9 +41,8 @@ char
 	pclose(p);
 	buf[strcspn(buf, "\n")] = 0;
 
-	if (buf[0] == '\0') {
+	if (buf[0] == '\0')
 		return (NULL);
-	}
 
 	return (strdup(buf));
 }
@@ -58,29 +60,10 @@ shell(struct state *st)
 }
 
 char
-*wm(void)
-{
-	const char *cmds[] = {
-		"i3-msg -v 2>/dev/null | head -n1 | awk '{print \"i3\"}'",
-		"xprop -root _NET_WM_NAME 2>/dev/null | cut -d '\"' -f2",
-		NULL
-	};
-
-	for (int i = 0; cmds[i]; i++) {
-		char *r = pr(cmds[i]);
-		if (r && *r && strcmp(r, "unknown") != 0)
-			return (r);
-		free(r);
-	}
-
-	return (strdup("unknown"));
-}
-
-char
 *uptime()
 {
-	long  up, days, hours, mins;
-	struct timeval t; /* boottime */
+	long  up, days, hrs, mins;
+	struct timeval t;
 	size_t tsz = sizeof(t);
 
 	if (sysctlbyname("kern.boottime", &t, &tsz, NULL, 0) == -1)
@@ -90,16 +73,16 @@ char
 
 	days = up / 86400;
 	up %= 86400;
-	hours = up / 3600;
+	hrs = up / 3600;
 	up %= 3600;
 	mins = up / 60;
 
 	if (!days) 
-		snprintf(buf, sizeof(buf), "%ld:%02ld", hours, mins);
+		snprintf(buf, sizeof(buf), "%ld:%02ld", hrs, mins);
 	else	
-		snprintf(buf, sizeof(buf), "%ld:%02ld:%02ld", days, hours, mins);
+		snprintf(buf, sizeof(buf), "%ld:%02ld:%02ld", days, hrs, mins);
 
-	return (buf);
+	return (strdup(buf));
 }
 
 void
@@ -111,7 +94,6 @@ get_packages(struct state *st)
 	if (f == NULL)
 		err(1, "popen(%s) failed", cmd);
 
-	/* No. of packages == simple line count */
 	size_t npkg = 0;
 
 	while (fgets(buf, sizeof buf, f) != NULL)
@@ -120,8 +102,23 @@ get_packages(struct state *st)
 
 	if (pclose(f) != 0)
 		err(1, "pclose(%s) failed", cmd);
+
 	snprintf(buf, sizeof(buf), "%zu", npkg);
 	st->pkgs = strdup(buf);
+}
+
+void
+user(struct state *st)
+{
+	struct passwd* pw;
+	char* p;
+
+	if ((p = getenv("USER")) == NULL || *p == '\0') {
+		if ((pw = getpwuid(getuid())) == NULL)
+			err(1, "getpwuid() failed");
+		p = pw->pw_name;
+	}
+	st->user = strdup(p);
 }
 
 
@@ -154,29 +151,29 @@ main(void)
 
 	os(&st, &u);
 	kernel(&st, &u);
+	user(&st);
 	arch(&st, &u);
-	st.wm = wm();
 	shell(&st);
 	get_packages(&st);
 
 	puts("");
-	printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", getenv("USER"));
+	printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", st.user);
 	printf("%s%*s%s\n", OSTEXT,      TABSIZE, "", st.os);
 	printf("%s%*s%s\n", ARCHTEXT,    TABSIZE, "", st.arch);
 	printf("%s%*s%s\n", KERNELTEXT,	 TABSIZE, "", st.kernel);
 	printf("%s%*s%s\n", PACKAGETEXT, TABSIZE, "", st.pkgs);
 	printf("%s%*s%s\n", SHELLTEXT,   TABSIZE, "", st.shell);
 	printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", getenv("TERM"));
-	printf("%s%*s%s\n", WMTEXT,      TABSIZE, "", st.wm);
 	printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
 	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", uptime());
 	puts("");
 
-	free(st.wm);
 	free(st.os);
 	free(st.arch);
 	free(st.pkgs);
+	free(st.user);
 	free(st.shell);
+	free(uptime());
 	free(st.kernel);
 
 	return (0);

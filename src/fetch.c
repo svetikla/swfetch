@@ -1,4 +1,3 @@
-#include <stddef.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,9 +7,7 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <sys/sysctl.h>
-#include <sys/user.h>
 #include "config.h"
 
 static char buf[BUFSIZ];
@@ -86,13 +83,13 @@ char
 }
 
 void
-get_packages(struct state *st)
+packages(struct state *st)
 {
 	const char* const cmd = "/usr/sbin/pkg info";
 
 	FILE *f = popen(cmd, "r");
 	if (f == NULL)
-		err(1, "popen(%s) failed", cmd);
+		return;
 
 	size_t npkg = 0;
 
@@ -101,7 +98,7 @@ get_packages(struct state *st)
 			npkg++;
 
 	if (pclose(f) != 0)
-		err(1, "pclose(%s) failed", cmd);
+		return;
 
 	snprintf(buf, sizeof(buf), "%zu", npkg);
 	st->pkgs = strdup(buf);
@@ -149,12 +146,13 @@ main(void)
 		return 1;
 	}
 
+	char *up = uptime();
 	os(&st, &u);
 	kernel(&st, &u);
 	user(&st);
 	arch(&st, &u);
 	shell(&st);
-	get_packages(&st);
+	packages(&st);
 
 	puts("");
 	printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", st.user);
@@ -165,15 +163,15 @@ main(void)
 	printf("%s%*s%s\n", SHELLTEXT,   TABSIZE, "", st.shell);
 	printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", getenv("TERM"));
 	printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
-	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", uptime());
+	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", up);
 	puts("");
 
+	free(up);
 	free(st.os);
 	free(st.arch);
 	free(st.pkgs);
 	free(st.user);
 	free(st.shell);
-	free(uptime());
 	free(st.kernel);
 
 	return (0);

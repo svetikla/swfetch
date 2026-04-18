@@ -23,28 +23,13 @@ state {
 };
 
 char
-*pr(const char *cmd)
-{
-	char buf[BUFSIZ];
-	FILE *p = popen(cmd, "r");
-	if (!p) return (NULL);
-	if (!fgets(buf, sizeof(buf), p)) {
-		pclose(p);
-		return (NULL);
-	}	
-	pclose(p);
-	buf[strcspn(buf, "\n")] = 0;
-	if (buf[0] == '\0') return (NULL);
-	return (strdup(buf));
-}
-
-void
-shell(struct state *st)
+*shell(struct state *st)
 {
 	char *sh = getenv("SHELL");
-	if (!sh) return;
+	if (!sh) return (NULL);
 	char *slash = strrchr(sh, '/');
 	st->shell = strdup(slash ? slash + 1 : sh);
+	return (0);
 }
 
 char
@@ -73,13 +58,13 @@ char
 	return (strdup(buf));
 }
 
-void
-packages(struct state *st)
+char
+*packages(struct state *st)
 {
 	const char* const cmd = "/usr/sbin/pkg info";
 
 	FILE *f = popen(cmd, "r");
-	if (f == NULL) return;
+	if (f == NULL) return (NULL);
 
 	size_t npkg = 0;
 
@@ -88,24 +73,27 @@ packages(struct state *st)
 			npkg++;
 	}
 
-	if (pclose(f) != 0) return;
+	if (pclose(f) != 0) return (NULL);
 
 	snprintf(buf, sizeof(buf), "%zu", npkg);
 	st->pkgs = strdup(buf);
+	return (0);
 }
 
-void
-user(struct state *st)
+char
+*user(struct state *st)
 {
 	struct passwd* pw;
 	char* p;
 
 	if ((p = getenv("USER")) == NULL || *p == '\0') {
 		if ((pw = getpwuid(getuid())) == NULL)
-			return;
+			return (NULL);
 		p = pw->pw_name;
 	}
+
 	st->user = strdup(p);
+	return (0);
 }
 
 

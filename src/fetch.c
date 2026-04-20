@@ -16,12 +16,11 @@
 
 #include "config.h"
 
-static char buf[BUFSIZ];
-
 struct
 state {
 	char *user;
 	char *kernel;
+	char *uptime;
 	char *ipaddr;
 	char *shell;
 	char *pkgs;
@@ -29,8 +28,8 @@ state {
 	char *os;
 };
 
-char
-*shell(struct state *st)
+void
+*set_shell(struct state *st)
 {
 	char *sh = getenv("SHELL");
 	if (!sh) return (NULL);
@@ -39,9 +38,10 @@ char
 	return (0);
 }
 
-char
-*uptime()
+void
+*set_uptime(struct state *st)
 {
+	char buf[64];
 	long  up, days, hrs, mins;
 	struct timeval t;
 	size_t tsz = sizeof(t);
@@ -49,8 +49,7 @@ char
 	if (sysctlbyname("kern.boottime", &t, &tsz, NULL, 0) == -1)
 		return (NULL);
 
-	up = (long)(time(NULL) - t.tv_sec + 30);
-
+	up = (long)(time(NULL) - t.tv_sec);
 	days = up / 86400;
 	up %= 86400;
 	hrs = up / 3600;
@@ -62,16 +61,18 @@ char
 	else	
 		snprintf(buf, sizeof(buf), "%ld:%02ld:%02ld", days, hrs, mins);
 
-	return (strdup(buf));
+	st->uptime = strdup(buf);
+	return (0);
 }
 
-char
-*packages(struct state *st)
+int
+set_packages(struct state *st)
 {
+	char buf[64];
 	const char* const cmd = "/usr/sbin/pkg info";
 
 	FILE *f = popen(cmd, "r");
-	if (f == NULL) return (NULL);
+	if (f == NULL) return (1);
 
 	size_t npkg = 0;
 
@@ -80,7 +81,7 @@ char
 			npkg++;
 	}
 
-	if (pclose(f) != 0) return (NULL);
+	if (pclose(f) != 0) return (1);
 
 	snprintf(buf, sizeof(buf), "%zu", npkg);
 	st->pkgs = strdup(buf);
@@ -88,7 +89,7 @@ char
 }
 
 void
-*user(struct state *st)
+*set_user(struct state *st)
 {
 	struct passwd* pw;
 	char* p;
@@ -104,7 +105,7 @@ void
 }
 
 void
-ipaddr(struct state *st)
+set_ipaddr(struct state *st)
 {
 	struct ifaddrs *ifap, *ifa;
 	char buf[INET_ADDRSTRLEN];
@@ -148,18 +149,18 @@ ipaddr(struct state *st)
 
 
 void
-arch(struct state *st, struct utsname *u) {
+set_arch(struct state *st, struct utsname *u) {
 	st->arch = strdup(u->machine);
 }
 
 
 void
-os(struct state *st, struct utsname *u) {
+set_os(struct state *st, struct utsname *u) {
 	st->os = strdup(u->sysname);
 }
 
 void
-kernel(struct state *st, struct utsname *u) {
+set_kernel(struct state *st, struct utsname *u) {
 	st->kernel = strdup(u->release);
 }
 
@@ -174,14 +175,14 @@ main(void)
 		return 1;
 	}
 
-	char *up = uptime();
-	os(&st, &u);
-	kernel(&st, &u);
-	user(&st);
-	arch(&st, &u);
-	shell(&st);
-	ipaddr(&st);
-	packages(&st);
+	set_uptime(&st);
+	set_kernel(&st, &u);
+	set_arch(&st, &u);
+	set_packages(&st);
+	set_os(&st, &u);
+	set_ipaddr(&st);
+	set_shell(&st);
+	set_user(&st);
 
 	puts("");
 	printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", st.user);
@@ -192,17 +193,17 @@ main(void)
 	printf("%s%*s%s\n", SHELLTEXT,   TABSIZE, "", st.shell);
 	printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", getenv("TERM"));
 	printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
-	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", up);
+	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", st.uptime);
 	printf("%s%*s%s\n", IPTEXT,      TABSIZE, "", st.ipaddr);
 	puts("");
 
-	free(up);
 	free(st.os);
 	free(st.arch);
 	free(st.pkgs);
 	free(st.user);
 	free(st.shell);
 	free(st.ipaddr);
+	free(st.uptime);
 	free(st.kernel);
 
 	return (0);

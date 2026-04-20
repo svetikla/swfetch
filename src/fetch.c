@@ -1,17 +1,19 @@
-#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/utsname.h>
+#include <unistd.h>
+#include <err.h>
 #include <time.h>
 #include <pwd.h>
-#include <unistd.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/utsname.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
-#include <ifaddrs.h>
-#include <arpa/inet.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+
 #include "config.h"
 
 static char buf[BUFSIZ];
@@ -85,7 +87,7 @@ char
 	return (0);
 }
 
-char
+void
 *user(struct state *st)
 {
 	struct passwd* pw;
@@ -101,31 +103,47 @@ char
 	return (0);
 }
 
-char
+void
 ipaddr(struct state *st)
 {
-	struct ifaddrs *ifaddr, *ifa;
+	struct ifaddrs *ifap, *ifa;
+	char buf[INET_ADDRSTRLEN];
 
-	getifaddrs(&ifaddr);
+	if (getifaddrs(&ifap) == -1)
+		return;
 
-	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
-		if (!ifa->ifa_addr) continue;
+	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
+		struct sockaddr_in *sin;
+		uint32_t ip;
 
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-			struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
-			unsigned int ip = ntohl(sa->sin_addr.s_addr);
-			if ((ip & 0xFF000000) == 0x0A000000 ||
-			    (ip & 0xFFF00000) == 0xAC100000 ||
-			    (ip & 0xFFFF0000) == 0xC0A80000) {
-				inet_ntop(AF_INET, &sa->sin_addr, buf, sizeof(buf));
-				st->ipaddr = strdup(buf);
-        			break;
-			}
-		}
+		if (ifa->ifa_addr == NULL)
+			continue;
+
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			continue;
+
+		if (!(ifa->ifa_flags & IFF_UP) ||
+		   (ifa->ifa_flags & IFF_LOOPBACK))
+			continue;
+
+		sin = (struct sockaddr_in *)ifa->ifa_addr;
+		ip = ntohl(sin->sin_addr.s_addr);
+
+		if (!((ip & 0xff000000) == 0x0a000000 ||
+		      (ip & 0xfff00000) == 0xac100000 ||
+		      (ip & 0xffff0000) == 0xc0a80000))
+			continue;
+
+		if (inet_ntop(AF_INET, &sin->sin_addr,
+		    buf, sizeof(buf)) == NULL)
+			continue;
+
+		free(st->ipaddr);
+		st->ipaddr = strdup(buf);
+		break;
 	}
 
-	freeifaddrs(ifaddr);
-	return (0);
+	freeifaddrs(ifap);
 }
 
 

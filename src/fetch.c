@@ -8,6 +8,10 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
+#include <ifaddrs.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include "config.h"
 
 static char buf[BUFSIZ];
@@ -16,6 +20,7 @@ struct
 state {
 	char *user;
 	char *kernel;
+	char *ipaddr;
 	char *shell;
 	char *pkgs;
 	char *arch;
@@ -96,6 +101,33 @@ char
 	return (0);
 }
 
+char
+ipaddr(struct state *st)
+{
+	struct ifaddrs *ifaddr, *ifa;
+
+	getifaddrs(&ifaddr);
+
+	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+		if (!ifa->ifa_addr) continue;
+
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+			unsigned int ip = ntohl(sa->sin_addr.s_addr);
+			if ((ip & 0xFF000000) == 0x0A000000 ||
+			    (ip & 0xFFF00000) == 0xAC100000 ||
+			    (ip & 0xFFFF0000) == 0xC0A80000) {
+				inet_ntop(AF_INET, &sa->sin_addr, buf, sizeof(buf));
+				st->ipaddr = strdup(buf);
+        			break;
+			}
+		}
+	}
+
+	freeifaddrs(ifaddr);
+	return (0);
+}
+
 
 void
 arch(struct state *st, struct utsname *u) {
@@ -130,6 +162,7 @@ main(void)
 	user(&st);
 	arch(&st, &u);
 	shell(&st);
+	ipaddr(&st);
 	packages(&st);
 
 	puts("");
@@ -142,6 +175,7 @@ main(void)
 	printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", getenv("TERM"));
 	printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
 	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", up);
+	printf("%s%*s%s\n", IPTEXT,      TABSIZE, "", st.ipaddr);
 	puts("");
 
 	free(up);
@@ -150,6 +184,7 @@ main(void)
 	free(st.pkgs);
 	free(st.user);
 	free(st.shell);
+	free(st.ipaddr);
 	free(st.kernel);
 
 	return (0);

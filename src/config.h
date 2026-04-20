@@ -9,3 +9,4 @@
 #define TERMTEXT    "     TERM"
 #define EDTEXT      "   EDITOR"
 #define UPTIMETEXT  "   UPTIME"
+#define IPTEXT      " LOCAL IP"

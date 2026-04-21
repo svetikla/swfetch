@@ -25,21 +25,22 @@ state {
 	char *shell;
 	char *pkgs;
 	char *arch;
+	char *ram;
 	char *os;
 };
 
-void
-*set_shell(struct state *st)
+int
+set_shell(struct state *st)
 {
 	char *sh = getenv("SHELL");
-	if (!sh) return (NULL);
+	if (!sh) return (1);
 	char *slash = strrchr(sh, '/');
 	st->shell = strdup(slash ? slash + 1 : sh);
 	return (0);
 }
 
-void
-*set_uptime(struct state *st)
+int
+set_uptime(struct state *st)
 {
 	char buf[64];
 	long  up, days, hrs, mins;
@@ -47,7 +48,7 @@ void
 	size_t tsz = sizeof(t);
 
 	if (sysctlbyname("kern.boottime", &t, &tsz, NULL, 0) == -1)
-		return (NULL);
+		return (1);
 
 	up = (long)(time(NULL) - t.tv_sec);
 	days = up / 86400;
@@ -88,15 +89,15 @@ set_packages(struct state *st)
 	return (0);
 }
 
-void
-*set_user(struct state *st)
+int
+set_user(struct state *st)
 {
 	struct passwd* pw;
 	char* p;
 
 	if ((p = getenv("USER")) == NULL || *p == '\0') {
 		if ((pw = getpwuid(getuid())) == NULL)
-			return (NULL);
+			return (1);
 		p = pw->pw_name;
 	}
 
@@ -104,14 +105,14 @@ void
 	return (0);
 }
 
-void
+int
 set_ipaddr(struct state *st)
 {
 	struct ifaddrs *ifap, *ifa;
 	char buf[INET_ADDRSTRLEN];
 
 	if (getifaddrs(&ifap) == -1)
-		return;
+		return (1);
 
 	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
 		struct sockaddr_in *sin;
@@ -145,8 +146,23 @@ set_ipaddr(struct state *st)
 	}
 
 	freeifaddrs(ifap);
+	return (0);
 }
 
+int
+set_ram(struct state *st)
+{
+	char buf[64];
+	unsigned long long mem;
+	size_t len = sizeof(mem);
+
+	if (sysctlbyname("hw.physmem", &mem, &len, NULL, 0) == -1)
+		return (1);
+
+	snprintf(buf, sizeof(buf), "%llu MB", mem / 1024 / 1024);
+	st->ram = strdup(buf);
+	return (0);
+}
 
 void
 set_arch(struct state *st, struct utsname *u) {
@@ -175,12 +191,15 @@ main(void)
 		return 1;
 	}
 
-	set_uptime(&st);
-	set_kernel(&st, &u);
-	set_arch(&st, &u);
-	set_packages(&st);
 	set_os(&st, &u);
+	set_arch(&st, &u);
+	set_kernel(&st, &u);
+	set_uptime(&st);
+
+	set_packages(&st);
 	set_ipaddr(&st);
+	set_ram(&st);
+
 	set_shell(&st);
 	set_user(&st);
 
@@ -195,9 +214,11 @@ main(void)
 	printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
 	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", st.uptime);
 	printf("%s%*s%s\n", IPTEXT,      TABSIZE, "", st.ipaddr);
+	printf("%s%*s%s\n", RAMTEXT,     TABSIZE, "", st.ram);
 	puts("");
 
 	free(st.os);
+	free(st.ram);
 	free(st.arch);
 	free(st.pkgs);
 	free(st.user);

@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -158,8 +159,9 @@ set_ram(struct state *st)
 
 	if (sysctlbyname("hw.physmem", &mem, &len, NULL, 0) == -1)
 		return (1);
+	snprintf(buf, sizeof(buf), "%llu MB",
+		       	mem / 1024 / 1024);
 
-	snprintf(buf, sizeof(buf), "%llu MB", mem / 1024 / 1024);
 	st->ram = strdup(buf);
 	return (0);
 }

@@ -10,10 +10,14 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
 #include <sys/utsname.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
+
+#include <sys/statvfs.h>
+#include <sys/vmmeter.h>
 
 #include "config.h"
 
@@ -24,6 +28,7 @@ state {
 	char *uptime;
 	char *ipaddr;
 	char *shell;
+	char *disk;
 	char *pkgs;
 	char *arch;
 	char *ram;
@@ -150,6 +155,7 @@ set_ipaddr(struct state *st)
 	return (0);
 }
 
+
 int
 set_ram(struct state *st)
 {
@@ -160,9 +166,30 @@ set_ram(struct state *st)
 	if (sysctlbyname("hw.physmem", &mem, &len, NULL, 0) == -1)
 		return (1);
 	snprintf(buf, sizeof(buf), "%llu MB",
-		       	mem / 1024 / 1024);
+			mem / 1024 / 1024);
 
 	st->ram = strdup(buf);
+	return (0);
+}
+
+int
+set_disk(struct state *st)
+{
+	char buf[64];
+	struct statvfs vfs;
+
+	if (statvfs("/", &vfs) == -1)
+		return (1);
+
+	unsigned long long total = vfs.f_blocks * vfs.f_frsize;
+	unsigned long long avail = vfs.f_bavail * vfs.f_frsize;
+	unsigned long long used  = total - avail;
+
+	snprintf(buf, sizeof(buf), "%lluG / %lluG",
+		 used  / 1024 / 1024 / 1024,
+		 total / 1024 / 1024 / 1024);
+
+	st->disk = strdup(buf);
 	return (0);
 }
 
@@ -200,7 +227,9 @@ main(void)
 
 	set_packages(&st);
 	set_ipaddr(&st);
+
 	set_ram(&st);
+	set_disk(&st);
 
 	set_shell(&st);
 	set_user(&st);
@@ -217,6 +246,7 @@ main(void)
 	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", st.uptime);
 	printf("%s%*s%s\n", IPTEXT,      TABSIZE, "", st.ipaddr);
 	printf("%s%*s%s\n", RAMTEXT,     TABSIZE, "", st.ram);
+	printf("%s%*s%s\n", DISKTEXT,    TABSIZE, "", st.disk);
 	puts("");
 
 	free(st.os);
@@ -225,6 +255,7 @@ main(void)
 	free(st.pkgs);
 	free(st.user);
 	free(st.shell);
+	free(st.disk);
 	free(st.ipaddr);
 	free(st.uptime);
 	free(st.kernel);

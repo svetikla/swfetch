@@ -11,3 +11,4 @@
 #define UPTIMETEXT  "    UPTIME"
 #define IPTEXT      "  LOCAL IP"
 #define RAMTEXT     "    MEMORY"
+#define DISKTEXT    "      DISK"

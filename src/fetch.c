@@ -17,7 +17,6 @@
 #include <sys/socket.h>
 
 #include <sys/statvfs.h>
-#include <sys/vmmeter.h>
 
 #include "config.h"
 
@@ -181,14 +180,14 @@ set_disk(struct state *st)
 	if (statvfs("/", &vfs) == -1)
 		return (1);
 
-	unsigned long long total = vfs.f_blocks * vfs.f_frsize;
-	unsigned long long avail = vfs.f_bavail * vfs.f_frsize;
-	unsigned long long used  = total - avail;
+	uint64_t total = vfs.f_blocks * vfs.f_frsize;
+	uint64_t avail = vfs.f_bavail * vfs.f_frsize;
+	uint64_t used  = total - avail;
 
-	snprintf(buf, sizeof(buf), "%lluG / %lluG",
-		 used  / 1024 / 1024 / 1024,
-		 total / 1024 / 1024 / 1024);
+	total /= 1024 * 1024;
+	used  /= 1024 * 1024;
 
+	snprintf(buf, sizeof(buf), "%luMB / %luMB", used, total);
 	st->disk = strdup(buf);
 	return (0);
 }
@@ -213,23 +212,22 @@ int
 main(void)
 {
 	struct state st = {0};
-
 	struct utsname u;
 	if (uname(&u) == -1) {
 		perror("uname");
 		return 1;
 	}
 
-	set_os(&st, &u);
-	set_arch(&st, &u);
 	set_kernel(&st, &u);
+	set_arch(&st, &u);
+	set_os(&st, &u);
 	set_uptime(&st);
 
 	set_packages(&st);
 	set_ipaddr(&st);
 
-	set_ram(&st);
 	set_disk(&st);
+	set_ram(&st);
 
 	set_shell(&st);
 	set_user(&st);
@@ -249,16 +247,16 @@ main(void)
 	printf("%s%*s%s\n", DISKTEXT,    TABSIZE, "", st.disk);
 	puts("");
 
-	free(st.os);
-	free(st.ram);
+	free(st.kernel);
+	free(st.ipaddr);
+	free(st.uptime);
+	free(st.shell);
 	free(st.arch);
 	free(st.pkgs);
 	free(st.user);
-	free(st.shell);
 	free(st.disk);
-	free(st.ipaddr);
-	free(st.uptime);
-	free(st.kernel);
+	free(st.ram);
+	free(st.os);
 
 	return (0);
 }

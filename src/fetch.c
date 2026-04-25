@@ -164,7 +164,7 @@ set_ram(struct state *st)
 
 	if (sysctlbyname("hw.physmem", &mem, &len, NULL, 0) == -1)
 		return (1);
-	snprintf(buf, sizeof(buf), "%llu MB",
+	snprintf(buf, sizeof(buf), "%lluMB",
 			mem / 1024 / 1024);
 
 	st->ram = strdup(buf);

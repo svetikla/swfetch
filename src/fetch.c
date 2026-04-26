@@ -21,28 +21,40 @@
 
 #include "config.h"
 
+#define FMT COL "%s" RES "%*s%s\n"
+
 struct
 state {
 	char *os;
 	char *kernel;
 	char *arch;
-
 	char *user;
 	char *shell;
 	char *uptime;
-
 	char *disk;
 	char *pkgs;
 	char *ram;
-
 	char *ipaddr;
 };
-
-#define FMT COL "%s" RES "%*s%s\n"
 
 static void
 pr(const char *label, const char *value) {
 	printf(FMT,label, TAB, "", value ?: "N/A");
+}
+
+void
+free_state(struct state *st)
+{
+	free(st->kernel);
+	free(st->ipaddr);
+	free(st->uptime);
+	free(st->shell);
+	free(st->arch);
+	free(st->pkgs);
+	free(st->user);
+	free(st->disk);
+	free(st->ram);
+	free(st->os);
 }
 
 int
@@ -63,8 +75,10 @@ set_uptime(struct state *st)
 	struct timeval t;
 	size_t tsz = sizeof(t);
 
-	if (sysctlbyname("kern.boottime", &t, &tsz, NULL, 0) == -1)
+	if (sysctlbyname("kern.boottime",
+			&t, &tsz, NULL, 0) == -1) {
 		return (1);
+	}
 
 	up = (long)(time(NULL) - t.tv_sec);
 	days = up / 86400;
@@ -73,10 +87,13 @@ set_uptime(struct state *st)
 	up %= 3600;
 	mins = up / 60;
 
-	if (!days) 
-		snprintf(buf, sizeof(buf), "%ld:%02ld", hrs, mins);
-	else	
-		snprintf(buf, sizeof(buf), "%ld:%02ld:%02ld", days, hrs, mins);
+	if (!days) {
+		snprintf(buf, sizeof(buf),
+			"%ld:%02ld", hrs, mins);
+	} else	{
+		snprintf(buf, sizeof(buf),
+			"%ld:%02ld:%02ld", days, hrs, mins);
+	}
 
 	st->uptime = strdup(buf);
 	return (0);
@@ -250,7 +267,7 @@ main(void)
 	set_shell(&st);
 	set_user(&st);
 
-	puts("");
+	putchar('\n');
 	pr(USERTEXT,    st.user);
 	pr(OSTEXT,      st.os);
 	pr(ARCHTEXT,    st.arch);
@@ -263,18 +280,8 @@ main(void)
 	pr(IPTEXT,      st.ipaddr);
 	pr(RAMTEXT,     st.ram);
 	pr(DISKTEXT,    st.disk);
-	puts("");
+	putchar('\n');
 
-	free(st.kernel);
-	free(st.ipaddr);
-	free(st.uptime);
-	free(st.shell);
-	free(st.arch);
-	free(st.pkgs);
-	free(st.user);
-	free(st.disk);
-	free(st.ram);
-	free(st.os);
-
+	free_state(&st);
 	return (0);
 }

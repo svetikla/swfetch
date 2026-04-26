@@ -1,4 +1,7 @@
-#define TABSIZE 4
+#define TAB 4
+
+#define COL "\033[1;31m"
+#define RES "\x1B[0m"
 
 #define USERTEXT    "      USER"
 #define OSTEXT      "        OS"

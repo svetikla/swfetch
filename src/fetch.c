@@ -15,24 +15,30 @@
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
-
 #include <sys/statvfs.h>
 
 #include "config.h"
 
 struct
 state {
-	char *user;
 	char *kernel;
 	char *uptime;
 	char *ipaddr;
 	char *shell;
+	char *user;
 	char *disk;
 	char *pkgs;
 	char *arch;
 	char *ram;
 	char *os;
 };
+
+#define FMT COL "%s" RES "%*s%s\n"
+
+static void
+pr(const char *label, const char *value) {
+	printf(FMT,label, TAB, "", value ?: "N/A");
+}
 
 int
 set_shell(struct state *st)
@@ -233,18 +239,18 @@ main(void)
 	set_user(&st);
 
 	puts("");
-	printf("%s%*s%s\n", USERTEXT,    TABSIZE, "", st.user);
-	printf("%s%*s%s\n", OSTEXT,      TABSIZE, "", st.os);
-	printf("%s%*s%s\n", ARCHTEXT,    TABSIZE, "", st.arch);
-	printf("%s%*s%s\n", KERNELTEXT,	 TABSIZE, "", st.kernel);
-	printf("%s%*s%s\n", PACKAGETEXT, TABSIZE, "", st.pkgs);
-	printf("%s%*s%s\n", SHELLTEXT,   TABSIZE, "", st.shell);
-	printf("%s%*s%s\n", TERMTEXT,    TABSIZE, "", getenv("TERM"));
-	printf("%s%*s%s\n", EDTEXT,      TABSIZE, "", getenv("EDITOR"));
-	printf("%s%*s%s\n", UPTIMETEXT,  TABSIZE, "", st.uptime);
-	printf("%s%*s%s\n", IPTEXT,      TABSIZE, "", st.ipaddr);
-	printf("%s%*s%s\n", RAMTEXT,     TABSIZE, "", st.ram);
-	printf("%s%*s%s\n", DISKTEXT,    TABSIZE, "", st.disk);
+	pr(USERTEXT,    st.user);
+	pr(OSTEXT,      st.os);
+	pr(ARCHTEXT,    st.arch);
+	pr(KERNELTEXT,  st.kernel);
+	pr(PACKAGETEXT, st.pkgs);
+	pr(SHELLTEXT,   st.shell);
+	pr(TERMTEXT,    getenv("TERM"));
+	pr(EDTEXT,      getenv("EDITOR"));
+	pr(UPTIMETEXT,  st.uptime);
+	pr(IPTEXT,      st.ipaddr);
+	pr(RAMTEXT,     st.ram);
+	pr(DISKTEXT,    st.disk);
 	puts("");
 
 	free(st.kernel);

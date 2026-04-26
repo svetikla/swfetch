@@ -1,7 +1,6 @@
 SRC = src/fetch.c
 CC ?= cc
 CFLAGS = -O2 -Wall -Wextra
-DEBUGFLAGS = -g -Og -Wall -Wextra
 PREFIX ?= /usr/local
 
 all: swfetch
@@ -9,11 +8,8 @@ all: swfetch
 swfetch: ${SRC} src/config.h
 	${CC} ${CFLAGS} ${SRC} -o swfetch
 
-debug:
-	${CC}  ${DEBUGFLAGS} ${SRC} -o swfetch-debug
-
 clean:
-	rm -rf swfetch swfetch.dSYM swfetch-debug swfetch-debug.dSYM
+	rm -rf swfetch swfetch.dSYM
 
 install: swfetch
 	mkdir -p ${DESTDIR}${PREFIX}/bin

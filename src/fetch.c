@@ -1,36 +1,41 @@
-#include <stdint.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
 #include <unistd.h>
 #include <err.h>
-#include <time.h>
 #include <pwd.h>
+
+#include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 
-#include <sys/utsname.h>
-#include <sys/time.h>
-#include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/statvfs.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
+#include <sys/utsname.h>
 
 #include "config.h"
 
 struct
 state {
+	char *os;
 	char *kernel;
-	char *uptime;
-	char *ipaddr;
-	char *shell;
+	char *arch;
+
 	char *user;
+	char *shell;
+	char *uptime;
+
 	char *disk;
 	char *pkgs;
-	char *arch;
 	char *ram;
-	char *os;
+
+	char *ipaddr;
 };
 
 #define FMT COL "%s" RES "%*s%s\n"
@@ -44,8 +49,8 @@ int
 set_shell(struct state *st)
 {
 	char *sh = getenv("SHELL");
-	if (!sh) return (1);
 	char *slash = strrchr(sh, '/');
+	if (!sh) return (1);
 	st->shell = strdup(slash ? slash + 1 : sh);
 	return (0);
 }
@@ -81,7 +86,7 @@ int
 set_packages(struct state *st)
 {
 	char buf[64];
-	const char* const cmd = "/usr/sbin/pkg info";
+	const char *const cmd = "/usr/sbin/pkg info";
 
 	FILE *f = popen(cmd, "r");
 	if (f == NULL) return (1);
@@ -103,15 +108,14 @@ set_packages(struct state *st)
 int
 set_user(struct state *st)
 {
-	struct passwd* pw;
-	char* p;
-
-	if ((p = getenv("USER")) == NULL || *p == '\0') {
-		if ((pw = getpwuid(getuid())) == NULL)
-			return (1);
+	struct passwd *pw;
+	char *p;
+	p = getenv("USER");
+	if (p == NULL || *p == '\0') {
+		pw = getpwuid(getuid());
+		if (pw == NULL) return (1);
 		p = pw->pw_name;
 	}
-
 	st->user = strdup(p);
 	return (0);
 }
@@ -150,7 +154,7 @@ set_ipaddr(struct state *st)
 		if (inet_ntop(AF_INET, &sin->sin_addr,
 		    buf, sizeof(buf)) == NULL)
 			continue;
-
+		
 		free(st->ipaddr);
 		st->ipaddr = strdup(buf);
 		break;
@@ -164,7 +168,7 @@ set_ipaddr(struct state *st)
 int
 set_ram(struct state *st)
 {
-	char buf[64];
+	char buf[32];
 	unsigned long long mem;
 	size_t len = sizeof(mem);
 
@@ -183,34 +187,42 @@ set_disk(struct state *st)
 	char buf[64];
 	struct statvfs vfs;
 
+	uint64_t total;
+	uint64_t avail;
+	uint64_t used;
+
 	if (statvfs("/", &vfs) == -1)
 		return (1);
 
-	uint64_t total = vfs.f_blocks * vfs.f_frsize;
-	uint64_t avail = vfs.f_bavail * vfs.f_frsize;
-	uint64_t used  = total - avail;
+	total = vfs.f_blocks * vfs.f_frsize;
+	avail = vfs.f_bavail * vfs.f_frsize;
+	used  = total - avail;
 
 	total /= 1024 * 1024;
 	used  /= 1024 * 1024;
 
-	snprintf(buf, sizeof(buf), "%luMB / %luMB", used, total);
+	snprintf(buf, sizeof(buf),
+		"%luMB / %luMB", used, total);
 	st->disk = strdup(buf);
 	return (0);
 }
 
 void
-set_arch(struct state *st, struct utsname *u) {
+set_arch(struct state *st, struct utsname *u)
+{
 	st->arch = strdup(u->machine);
 }
 
 
 void
-set_os(struct state *st, struct utsname *u) {
+set_os(struct state *st, struct utsname *u)
+{
 	st->os = strdup(u->sysname);
 }
 
 void
-set_kernel(struct state *st, struct utsname *u) {
+set_kernel(struct state *st, struct utsname *u)
+{
 	st->kernel = strdup(u->release);
 }
 

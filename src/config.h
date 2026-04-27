@@ -15,3 +15,4 @@
 #define IPTEXT      "  LOCAL IP"
 #define RAMTEXT     "    MEMORY"
 #define DISKTEXT    "      DISK"
+#define LOCALETEXT  "    LOCALE"

@@ -22,6 +22,10 @@
 #include "config.h"
 
 #define FMT COL "%s" RES "%*s%s\n"
+#define SYS_WIRED "vm.stats.vm.v_wire_count"
+#define SYS_ACTIVE "vm.stats.vm.v_active_count"
+#define SYS_PGSIZE "hw.pagesize"
+#define SYS_PHYS   "hw.physmem"
 
 struct
 state {
@@ -35,12 +39,8 @@ state {
 	char *pkgs;
 	char *ram;
 	char *ipaddr;
+	char *locale;
 };
-
-static void
-pr(const char *label, const char *value) {
-	printf(FMT,label, TAB, "", value ?: "N/A");
-}
 
 void
 free_state(struct state *st)
@@ -48,6 +48,7 @@ free_state(struct state *st)
 	free(st->kernel);
 	free(st->ipaddr);
 	free(st->uptime);
+	free(st->locale);
 	free(st->shell);
 	free(st->arch);
 	free(st->pkgs);
@@ -55,6 +56,11 @@ free_state(struct state *st)
 	free(st->disk);
 	free(st->ram);
 	free(st->os);
+}
+
+static void
+pr(const char *label, const char *value) {
+	printf(FMT,label, TAB, "", value ?: "N/A");
 }
 
 int
@@ -181,18 +187,27 @@ set_ipaddr(struct state *st)
 	return (0);
 }
 
-
 int
 set_ram(struct state *st)
 {
-	char buf[32];
-	unsigned long long mem;
-	size_t len = sizeof(mem);
+	char buf[64];
+	uint64_t t;
+	u_int a;
+	u_int w;
 
-	if (sysctlbyname("hw.physmem", &mem, &len, NULL, 0) == -1)
-		return (1);
-	snprintf(buf, sizeof(buf), "%lluMB",
-			mem / 1024 / 1024);
+	sysctlbyname(SYS_ACTIVE, &a,
+		&(size_t){sizeof(a)}, NULL, 0);
+
+	sysctlbyname(SYS_WIRED,  &w,
+		&(size_t){sizeof(w)}, NULL, 0);
+
+	sysctlbyname(SYS_PHYS,   &t,
+		&(size_t){sizeof(t)}, NULL, 0);
+
+	snprintf(buf, sizeof(buf),
+		"%luMB / %luMB",
+		((u_int64_t)a + w) * sysconf(_SC_PAGESIZE) >> 20,
+		t >> 20);
 
 	st->ram = strdup(buf);
 	return (0);
@@ -221,6 +236,22 @@ set_disk(struct state *st)
 	snprintf(buf, sizeof(buf),
 		"%luMB / %luMB", used, total);
 	st->disk = strdup(buf);
+	return (0);
+}
+
+int
+set_locale(struct state *st)
+{
+	char *loc;
+	loc = getenv("LC_ALL");
+
+	if (!loc || !*loc) {
+		loc = getenv("LC_CTYPE");
+	}
+	if (!loc || !*loc) {
+		loc = getenv("LANG");
+	}
+	st->locale = strdup(loc);
 	return (0);
 }
 
@@ -265,6 +296,7 @@ main(void)
 	set_ram(&st);
 
 	set_shell(&st);
+	set_locale(&st);
 	set_user(&st);
 
 	putchar('\n');
@@ -280,6 +312,7 @@ main(void)
 	pr(IPTEXT,      st.ipaddr);
 	pr(RAMTEXT,     st.ram);
 	pr(DISKTEXT,    st.disk);
+	pr(LOCALETEXT,  st.locale);
 	putchar('\n');
 
 	free_state(&st);

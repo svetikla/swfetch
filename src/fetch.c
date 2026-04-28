@@ -3,15 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
 #include <unistd.h>
 #include <pwd.h>
-
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
-
 #include <sys/socket.h>
 #include <sys/statvfs.h>
 #include <sys/sysctl.h>
@@ -20,13 +17,13 @@
 
 #include "config.h"
 
-#define FMT COL  "%s" RES "%*s%s\n"
-#define S_WIRED  "vm.stats.vm.v_wire_count"
-#define S_ACTIVE "vm.stats.vm.v_active_count"
-#define S_PHYS   "hw.physmem"
+#define FMT COL     "%s" RES "%*s%s\n"
+#define S_WIRED     "vm.stats.vm.v_wire_count"
+#define S_ACTIVE    "vm.stats.vm.v_active_count"
+#define S_PHYS      "hw.physmem"
 
-#define sz(v) &(size_t){sizeof(v)}
-#define sbn(n,v) sysctlbyname(n,&v,sz(v),0,0)
+#define sz(v)		&(size_t){sizeof(v)}
+#define sbn(n,v)	sysctlbyname(n,&v,sz(v),0,0)
 
 struct
 state {
@@ -43,7 +40,7 @@ state {
 	char *ipaddr;
 };
 
-void
+static void
 free_state(struct state *st)
 {
 	free(st->kernel);
@@ -82,9 +79,8 @@ set_uptime(struct state *st)
 	long  up, days, hrs, mins;
 	struct timeval t;
 
-	if (sbn("kern.boottime", t) == -1) {
+	if (sbn("kern.boottime", t) == -1)
 		return (1);
-	}
 
 	up = (long)(time(NULL) - t.tv_sec);
 	days = up / 86400;
@@ -149,9 +145,8 @@ set_ipaddr(struct state *st)
 	struct ifaddrs *ifap, *ifa;
 	char buf[INET_ADDRSTRLEN];
 
-	if (getifaddrs(&ifap) == -1) {
+	if (getifaddrs(&ifap) == -1)
 		return (1);
-	}
 
 	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
 		struct sockaddr_in *sin;
@@ -196,9 +191,9 @@ set_ram(struct state *st)
 	u_int a;
 	u_int w;
 
+	if (sbn(S_PHYS,   t)) return (1);
 	if (sbn(S_ACTIVE, a)) return (1);
 	if (sbn(S_WIRED,  w)) return (1);
-	if (sbn(S_PHYS,   t)) return (1);
 
 	snprintf(buf, sizeof(buf),
 		"%luMB / %luMB",
@@ -219,9 +214,8 @@ set_disk(struct state *st)
 	uint64_t avail;
 	uint64_t used;
 
-	if (statvfs("/", &vfs) == -1) {
+	if (statvfs("/", &vfs) == -1)
 		return (1);
-	}
 
 	total = vfs.f_blocks * vfs.f_frsize;
 	avail = vfs.f_bavail * vfs.f_frsize;
@@ -239,16 +233,12 @@ set_disk(struct state *st)
 int
 set_locale(struct state *st)
 {
-	char *loc;
-	loc = getenv("LC_ALL");
+	char *l = getenv("LC_ALL");
 
-	if (!loc || !*loc) {
-		loc = getenv("LC_CTYPE");
-	}
-	if (!loc || !*loc) {
-		loc = getenv("LANG");
-	}
-	st->locale = strdup(loc);
+	if (!l || !*l) l = getenv("LC_CTYPE");
+	if (!l || !*l) l = getenv("LANG");
+
+	st->locale = strdup(l);
 	return (0);
 }
 

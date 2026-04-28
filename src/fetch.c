@@ -5,7 +5,6 @@
 #include <time.h>
 
 #include <unistd.h>
-#include <err.h>
 #include <pwd.h>
 
 #include <arpa/inet.h>
@@ -21,11 +20,13 @@
 
 #include "config.h"
 
-#define FMT COL "%s" RES "%*s%s\n"
-#define SYS_WIRED "vm.stats.vm.v_wire_count"
-#define SYS_ACTIVE "vm.stats.vm.v_active_count"
-#define SYS_PGSIZE "hw.pagesize"
-#define SYS_PHYS   "hw.physmem"
+#define FMT COL  "%s" RES "%*s%s\n"
+#define S_WIRED  "vm.stats.vm.v_wire_count"
+#define S_ACTIVE "vm.stats.vm.v_active_count"
+#define S_PHYS   "hw.physmem"
+
+#define sz(v) &(size_t){sizeof(v)}
+#define sbn(n,v) sysctlbyname(n,&v,sz(v),0,0)
 
 struct
 state {
@@ -34,12 +35,12 @@ state {
 	char *arch;
 	char *user;
 	char *shell;
+	char *locale;
 	char *uptime;
 	char *disk;
 	char *pkgs;
 	char *ram;
 	char *ipaddr;
-	char *locale;
 };
 
 void
@@ -59,7 +60,8 @@ free_state(struct state *st)
 }
 
 static void
-pr(const char *label, const char *value) {
+pr(const char *label, const char *value)
+{
 	printf(FMT,label, TAB, "", value ?: "N/A");
 }
 
@@ -67,9 +69,9 @@ int
 set_shell(struct state *st)
 {
 	char *sh = getenv("SHELL");
-	char *slash = strrchr(sh, '/');
 	if (!sh) return (1);
-	st->shell = strdup(slash ? slash + 1 : sh);
+	char *sl = strrchr(sh, '/');
+	st->shell = strdup(sl ? sl + 1 : sh);
 	return (0);
 }
 
@@ -79,10 +81,8 @@ set_uptime(struct state *st)
 	char buf[64];
 	long  up, days, hrs, mins;
 	struct timeval t;
-	size_t tsz = sizeof(t);
 
-	if (sysctlbyname("kern.boottime",
-			&t, &tsz, NULL, 0) == -1) {
+	if (sbn("kern.boottime", t) == -1) {
 		return (1);
 	}
 
@@ -149,8 +149,9 @@ set_ipaddr(struct state *st)
 	struct ifaddrs *ifap, *ifa;
 	char buf[INET_ADDRSTRLEN];
 
-	if (getifaddrs(&ifap) == -1)
+	if (getifaddrs(&ifap) == -1) {
 		return (1);
+	}
 
 	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
 		struct sockaddr_in *sin;
@@ -167,7 +168,7 @@ set_ipaddr(struct state *st)
 			continue;
 
 		sin = (struct sockaddr_in *)ifa->ifa_addr;
-		ip = ntohl(sin->sin_addr.s_addr);
+		ip  = ntohl(sin->sin_addr.s_addr);
 
 		if (!((ip & 0xff000000) == 0x0a000000 ||
 		      (ip & 0xfff00000) == 0xac100000 ||
@@ -195,14 +196,9 @@ set_ram(struct state *st)
 	u_int a;
 	u_int w;
 
-	sysctlbyname(SYS_ACTIVE, &a,
-		&(size_t){sizeof(a)}, NULL, 0);
-
-	sysctlbyname(SYS_WIRED,  &w,
-		&(size_t){sizeof(w)}, NULL, 0);
-
-	sysctlbyname(SYS_PHYS,   &t,
-		&(size_t){sizeof(t)}, NULL, 0);
+	if (sbn(S_ACTIVE, a)) return (1);
+	if (sbn(S_WIRED,  w)) return (1);
+	if (sbn(S_PHYS,   t)) return (1);
 
 	snprintf(buf, sizeof(buf),
 		"%luMB / %luMB",
@@ -223,8 +219,9 @@ set_disk(struct state *st)
 	uint64_t avail;
 	uint64_t used;
 
-	if (statvfs("/", &vfs) == -1)
+	if (statvfs("/", &vfs) == -1) {
 		return (1);
+	}
 
 	total = vfs.f_blocks * vfs.f_frsize;
 	avail = vfs.f_bavail * vfs.f_frsize;

@@ -1,6 +1,6 @@
 SRC = src/fetch.c
 CC ?= cc
-CFLAGS = -O2 -Wall -Wextra
+CFLAGS += -O2 -Wall -Wextra
 PREFIX ?= /usr/local
 
 all: swfetch
@@ -14,7 +14,6 @@ clean:
 install: swfetch
 	mkdir -p ${DESTDIR}${PREFIX}/bin
 	cp swfetch ${DESTDIR}${PREFIX}/bin
-	chmod 711 ${DESTDIR}${PREFIX}/bin/swfetch
 
 uninstall:
 	rm -f ${DESTDIR}${PREFIX}/bin/swfetch

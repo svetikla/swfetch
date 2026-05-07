@@ -1,0 +1,14 @@
+sfetch - simple fetch
+----------------------
+sfetch is a simple fetch for FreeBSD which sucks less (no)
+
+installation
+------------
+enter the following command to build and install sfetch
+(if necessary as root):
+
+    make clean install
+
+credits
+-------
+(not enough) inspired by suckless.org

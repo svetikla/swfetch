@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -106,10 +107,8 @@ set_packages(struct state *st)
 {
 	char buf[64];
 	const char *const cmd = "/usr/sbin/pkg info";
-
 	FILE *f = popen(cmd, "r");
 	if (f == NULL) return (1);
-
 	size_t npkg = 0;
 
 	while (fgets(buf, sizeof buf, f) != NULL) {
@@ -118,7 +117,6 @@ set_packages(struct state *st)
 	}
 
 	if (pclose(f) != 0) return (1);
-
 	snprintf(buf, sizeof(buf), "%zu", npkg);
 	st->pkgs = strdup(buf);
 	return (0);
@@ -151,7 +149,6 @@ set_ipaddr(struct state *st)
 	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
 		struct sockaddr_in *sin;
 		uint32_t ip;
-
 		if (ifa->ifa_addr == NULL)
 			continue;
 
@@ -209,7 +206,6 @@ set_disk(struct state *st)
 {
 	char buf[64];
 	struct statvfs vfs;
-
 	uint64_t total;
 	uint64_t avail;
 	uint64_t used;
@@ -220,7 +216,6 @@ set_disk(struct state *st)
 	total = vfs.f_blocks * vfs.f_frsize;
 	avail = vfs.f_bavail * vfs.f_frsize;
 	used  = total - avail;
-
 	total /= 1024 * 1024;
 	used  /= 1024 * 1024;
 
@@ -234,10 +229,8 @@ int
 set_locale(struct state *st)
 {
 	char *l = getenv("LC_ALL");
-
 	if (!l || !*l) l = getenv("LC_CTYPE");
 	if (!l || !*l) l = getenv("LANG");
-
 	st->locale = strdup(l);
 	return (0);
 }

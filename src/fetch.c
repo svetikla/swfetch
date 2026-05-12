@@ -157,6 +157,7 @@ set_ipaddr(struct state *st)
 	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
 		struct sockaddr_in *sin;
 		uint32_t ip;
+
 		if (ifa->ifa_addr == NULL)
 			continue;
 
@@ -258,25 +259,6 @@ set_host(struct state *st)
 	return (0);
 }
 
-void
-set_arch(struct state *st, struct utsname *u)
-{
-	st->arch = strdup(u->machine);
-}
-
-
-void
-set_os(struct state *st, struct utsname *u)
-{
-	st->os = strdup(u->sysname);
-}
-
-void
-set_kernel(struct state *st, struct utsname *u)
-{
-	st->kernel = strdup(u->release);
-}
-
 int
 main(void)
 {
@@ -286,10 +268,11 @@ main(void)
 		perror("uname");
 		return 1;
 	}
+
+	st.os = strdup(u.sysname);
+	st.kernel = strdup(u.release);
+	st.arch = strdup(u.machine);
 	
-	set_kernel(&st, &u);
-	set_arch(&st, &u);
-	set_os(&st, &u);
 	set_uptime(&st);
 	set_host(&st);
 

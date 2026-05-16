@@ -111,21 +111,27 @@ int
 set_packages(struct state *st)
 {
 	char buf[64];
-	const char *const cmd = "/usr/sbin/pkg info";
+	const char *const cmd = "/usr/sbin/pkg query %n \
+			2>/dev/null | /usr/bin/wc -l";
 	FILE *f = popen(cmd, "r");
-	if (f == NULL) return (1);
-	size_t npkg = 0;
+	if (f == NULL)
+		return (1);
 
-	while (fgets(buf, sizeof buf, f) != NULL) {
-		if (strchr(buf, '\n') != NULL) {
-			npkg++;
-		}
+	if (fgets(buf, sizeof(buf), f) == NULL) {
+		pclose(f);
+		return (1);
 	}
 
 	if (pclose(f) != 0)
 		return (1);
-	snprintf(buf, sizeof(buf), "%zu", npkg);
-	st->pkgs = strdup(buf);
+
+	char *r = buf;
+	while (*r == ' ') {
+		r++;
+	}
+
+	r[strcspn(r, "\n\r ")] = '\0';
+	st->pkgs = strdup(r);
 	return (0);
 }
 
@@ -266,7 +272,7 @@ main(void)
 	struct utsname u;
 	if (uname(&u) == -1) {
 		perror("uname");
-		return 1;
+		return (1);
 	}
 
 	st.os = strdup(u.sysname);
@@ -274,10 +280,9 @@ main(void)
 	st.arch = strdup(u.machine);
 	
 	set_uptime(&st);
-	set_host(&st);
-
 	set_packages(&st);
 	set_ipaddr(&st);
+	set_host(&st);
 
 	set_disk(&st);
 	set_ram(&st);
